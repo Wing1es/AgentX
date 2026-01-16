@@ -1,0 +1,29 @@
+[project]
+name = "agent-dist"
+version = "0.1.5"
+description = "A lightweight agentic mesh for orchestrating AI agents."
+readme = "README.md"
+authors = [{name = "Shekar", email = "shekar.shekar9036@gmail.com"}]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "httpx",
+    "pydantic",
+    "langchain-groq",
+    "langchain-ollama",
+    "python-dotenv",
+    "matplotlib>=3.10.8",
+    "seaborn>=0.13.2",
+]
+
+[project.scripts]
+agent-trace = "agent_dist.orchestrator.cli:main"
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.sdist]
+include = [".env.example"]

@@ -1,0 +1,21 @@
+# Generic Dockerfile for Agents
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install uv
+
+COPY . .
+
+RUN uv pip install --system fastapi uvicorn requests httpx pydantic
+
+ENV PYTHONPATH=/app
+
+# Agent script passed as argument, e.g. tests.intake
+ARG AGENT_MODULE
+ENV AGENT_MODULE=${AGENT_MODULE}
+
+# We use a wrapper entrypoint or direct python -m call
+# But CMD doesn't support variable expansion well in exec form.
+# We'll use shell form or an entrypoint script.
+CMD python -m ${AGENT_MODULE}

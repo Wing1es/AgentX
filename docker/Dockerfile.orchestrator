@@ -1,0 +1,16 @@
+# Dockerfile for Orchestrator
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install uv
+
+COPY . .
+
+# Install dependencies including LLM libs
+RUN uv pip install --system fastapi uvicorn requests httpx langchain-ollama pydantic
+
+ENV PYTHONPATH=/app
+ENV ORCHESTRATOR_PORT=7001
+
+CMD ["python", "-m", "agentflows.orchestrator.app"]

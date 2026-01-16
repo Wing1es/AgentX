@@ -1,0 +1,4 @@
+include agent_dist/registry/registry.db
+include agent_dist/orchestrator/memory.db
+recursive-include agent_dist *.py
+include .env.example

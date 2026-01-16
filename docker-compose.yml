@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  registry:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.registry
+    ports:
+      - "8000:8000"
+    environment:
+      - REGISTRY_DB=/app/registry.db
+    volumes:
+      - ./registry.db:/app/registry.db
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.orchestrator
+    ports:
+      - "7001:7001"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+      - ORCHESTRATOR_PORT=7001
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - DEBUG_MODE=true
+    volumes:
+      - ./agentflows/orchestrator/memory.db:/app/agentflows/orchestrator/memory.db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - registry
+
+  agent-intake:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_MODULE: tests.intake
+    ports:
+      - "9104:9104"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    depends_on:
+      - registry
+
+  agent-schedule:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_MODULE: tests.schedule
+    ports:
+      - "9102:9102"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    depends_on:
+      - registry
+
+  agent-confirm:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_MODULE: tests.confirmation
+    ports:
+      - "9103:9103"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    depends_on:
+      - registry
+
+  agent-insurance:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_MODULE: tests.insurance
+    ports:
+      - "9204:9204"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    depends_on:
+      - registry
+
+  agent-fee:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+      args:
+        AGENT_MODULE: tests.fee
+    ports:
+      - "9202:9202"
+    environment:
+      - REGISTRY_URL=http://registry:8000
+    depends_on:
+      - registry

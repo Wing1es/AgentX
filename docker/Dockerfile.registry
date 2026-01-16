@@ -1,0 +1,21 @@
+# Dockerfile for Registry
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install uv for fast package management
+RUN pip install uv
+
+# Copy project files
+COPY . .
+
+# Install dependencies
+# Assuming requirements.txt or pyproject.toml exists if using uv, 
+# but here we'll use uv to install dependencies directly or via pyproject.toml
+# For simplicity in this mono-repo structure:
+RUN uv pip install --system fastapi uvicorn requests pydantic
+
+ENV PYTHONPATH=/app
+ENV PORT=8000
+
+CMD ["python", "-m", "agentflows.registry.app"]
