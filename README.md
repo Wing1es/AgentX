@@ -112,7 +112,7 @@ JSON
 Note: If ```debug=true```, the response will include the detailed execution plan.
 
 ## Architecture & Concepts
-![Agent Flow](images/agent_flow.png)
+![Agent Flow](architecture_png.drawio-2.png)
 
 #### Routing System
 * Routing is performed in multiple stages to ensure the correct agent is selected:
