@@ -15,10 +15,7 @@ class AgentRegistration(BaseModel):
     name: str
     description: str
     url: str
-    intent_group: str
-    capability_cluster: str
     version: str = "1.0.0"
-    description: Optional[str] = ""
     tags: List[str] = []
     capabilities: Capabilities
 
@@ -33,33 +30,3 @@ class AgentRecord(AgentRegistration):
 class DeleteRequest(BaseModel):
     names: List[str] = []
     delete_all: bool = False
-
-class IntentCreate(BaseModel):
-    name: str
-    description: str
-
-class CapabilityCreate(BaseModel):
-    name: str
-    description: str
-
-class IntentBulkCreate(BaseModel):
-    intents: List[IntentCreate]
-
-class CapabilityBulkItem(BaseModel):
-    intent: str
-    name: str
-    description: str
-
-class CapabilityBulkCreate(BaseModel):
-    capabilities: List[CapabilityBulkItem]
-
-class CapabilityDef(BaseModel):
-    name: str
-    description: str
-
-class IntentSchema(BaseModel):
-    description: str
-    capabilities: List[CapabilityDef]
-
-class RegistrySchemaBulk(BaseModel):
-    intents: Dict[str, IntentSchema]

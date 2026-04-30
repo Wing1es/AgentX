@@ -49,25 +49,7 @@ def _resolve_registry_url(override: Optional[str] = None) -> str:
     return "http://localhost:8000"
 
 
-def list_intents(registry_url: Optional[str] = None) -> Dict[str, Dict]:
-    url = _resolve_registry_url(registry_url)
-    return requests.get(f"{url}/intents", timeout=5).json()
 
-
-def list_capabilities(intent: str, registry_url: Optional[str] = None) -> Dict[str, Dict]:
-    url = _resolve_registry_url(registry_url)
-    return requests.get(f"{url}/intents/{intent}/capabilities", timeout=5).json()
-
-
-def _validate_against_registry(intent: str, capability: str, registry_url: str):
-    intents = list_intents(registry_url)
-    if intent not in intents:
-        raise ValueError(f"Unknown intent_group: {intent}")
-    caps = list_capabilities(intent, registry_url)
-    if capability not in caps:
-        raise ValueError(
-            f"Capability '{capability}' not allowed for intent '{intent}'"
-        )
 
 
 def _pytype_to_json_schema(annotation):
@@ -163,8 +145,6 @@ def _start_heartbeat(agent_name: str, registry_url: str, interval: int):
 def agent(
     *,
     url: str,
-    intent_group: str,
-    capability_cluster: str,
     tasks: List[str],
     input_types: List[str],
     requires: Optional[List[str]] = None,
@@ -181,13 +161,6 @@ def agent(
         description = (func.__doc__ or "").strip()
         resolved_registry = _resolve_registry_url(registry_url)
 
-        if _CONFIG.strict_validation:
-            _validate_against_registry(
-                intent_group,
-                capability_cluster,
-                resolved_registry,
-            )
-
         input_schema = _build_input_schema(func)
 
         if tags is not None and not all(isinstance(t, str) for t in tags):
@@ -198,8 +171,6 @@ def agent(
             "description": description,
             "tags": tags or [],
             "url": url,
-            "intent_group": intent_group,
-            "capability_cluster": capability_cluster,
             "version": version,
             "capabilities": {
                 "tasks": tasks,

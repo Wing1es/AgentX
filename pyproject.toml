@@ -1,6 +1,6 @@
 [project]
 name = "agent-dist"
-version = "0.1.5"
+version = "0.2.0"
 description = "A lightweight agentic mesh for orchestrating AI agents."
 readme = "README.md"
 authors = [{name = "Shekar", email = "shekar.shekar9036@gmail.com"}]
@@ -16,6 +16,10 @@ dependencies = [
     "python-dotenv",
     "matplotlib>=3.10.8",
     "seaborn>=0.13.2",
+    "sentence-transformers",
+    "numpy",
+    "rank-bm25>=0.2.2",
+    "graphviz>=0.21",
 ]
 
 [project.scripts]

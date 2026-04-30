@@ -1,85 +1,71 @@
+import logging
 import hashlib
+import time
 from typing import Dict, List
 from agent_dist.registry.client import RegistryClient
 from .models import MultiRouteDecision
-from .prompts import IntentClassifierPrompt, CapabilityClassifierPrompt, ShouldUseAgentsPrompt
+from .prompts import ShouldUseAgentsPrompt
 
-class HierarchicalRouter:
-    def __init__(self, llm, registry: RegistryClient):
+logger = logging.getLogger("orchestrator.router")
+
+class SemanticRouter:
+    def __init__(self, llm, registry: RegistryClient, threshold: float = 0.3):
         self.llm = llm
         self.registry = registry
-        self._cache: Dict[str, MultiRouteDecision] = {}
+        self.threshold = threshold
+        self._cache: Dict[str, tuple] = {}
+        self._cache_ttl: int = 300 
+    
+    def _is_cache_valid(self, key: str) -> bool:
+        if key not in self._cache:
+            return False
+        _, ts = self._cache[key]
+        return (time.time() - ts) < self._cache_ttl
+    
+    def invalidate_cache(self):
+        self._cache.clear()
+        logger.info('Router: cache invalidated')
 
     def route(self, query: str, history: List[Dict] = None) -> MultiRouteDecision:
         cache_key = self._hash(query)
-        if cache_key in self._cache:
-            return self._cache[cache_key]
+        if self._is_cache_valid(cache_key):
+            decision, _ = self._cache[cache_key]
+            return decision
 
         # 1. Gatekeeping
         if not self._should_use_agents(query):
             decision = MultiRouteDecision(mode="llm_only")
-            self._cache[cache_key] = decision
+            self._cache[cache_key] = (decision, time.time())
             return decision
-
-        # 2. Level 1: Intent Routing
-        intents_map = self.registry.list_intents()
-        intents_desc = "\n".join(
-            [f"- {name}: {data['description']}" for name, data in intents_map.items()]
-        )
-
-        prompt = IntentClassifierPrompt.format(
-            intents_desc=intents_desc,
-            query=query
-        )
-        response = self.llm.invoke(prompt)
-        target_intent = response.content.strip()
-
-        all_agents = self.registry.list_agents()
-        scoped_agents = all_agents
-
-        if target_intent in intents_map:
-            caps_map = self.registry.list_capabilities(target_intent)
-
-            if len(caps_map) == 1:
-                target_cap = list(caps_map.keys())[0]
-            elif len(caps_map) > 1:
-                caps_desc = "\n".join(
-                    [f"- {name}: {desc}" for name, desc in caps_map.items()]
-                )
-                cap_prompt = CapabilityClassifierPrompt.format(
-                    intent=target_intent,
-                    caps_desc=caps_desc,
-                    query=query
-                )
-                cap_resp = self.llm.invoke(cap_prompt)
-                target_cap = cap_resp.content.strip()
-            else:
-                target_cap = "ALL"
-
-            # 4. Filter Agents
-            if target_cap and target_cap != "ALL" and target_cap in caps_map:
-                scoped_agents = [
-                    a for a in all_agents 
-                    if a['intent_group'] == target_intent 
-                    and a['capability_cluster'] == target_cap
-                ]
-            else:
-                scoped_agents = [
-                    a for a in all_agents 
-                    if a['intent_group'] == target_intent
-                ]
-
-            decision = MultiRouteDecision(mode="react", scope=scoped_agents)
+    
+        # 2. Semantic Search
+        
+        # Search for relevant agents
+        scoped_agents = self.registry.search_agents(query, limit=5, threshold=self.threshold)
+        
+        if not scoped_agents:
+            # Fallback: if no agents found, what should we do?
+            # Option A: Try llm_only
+            # Option B: Return all agents (dangerous if too many)
+            # Option C: Return empty scope (planner might fail or LLM will say I can't do it)
+            logger.info(f"Router: No agents found for query via vector search (threshold={self.threshold})")
+            decision = MultiRouteDecision(mode="llm_only")
         else:
-            decision = MultiRouteDecision(mode="react", scope=all_agents)
+            logger.info(f"Router: Found {len(scoped_agents)} agents via vector search")
+            decision = MultiRouteDecision(mode="react", scope=scoped_agents)
 
-        self._cache[cache_key] = decision
+        self._cache[cache_key] = (decision, time.time())
         return decision
 
     def _hash(self, query: str) -> str:
         return hashlib.sha256(query.encode()).hexdigest()
 
     def _should_use_agents(self, query: str) -> bool:
-        prompt = ShouldUseAgentsPrompt.format(query=query)
-        out = self.llm.invoke(prompt)
-        return out.content.strip().lower() == "true"
+        try:
+            prompt = ShouldUseAgentsPrompt.format(query=query)
+            out = self.llm.invoke(prompt)
+            return out.content.strip().lower() == "true"
+        except Exception as e:
+            # Fallback to True on error to be safe
+            logger.warning(f"Router Warning: LLM gatekeeping failed: {e}")
+            return True

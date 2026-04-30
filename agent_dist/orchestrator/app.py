@@ -72,10 +72,20 @@ async def query(payload: QueryRequest, request: Request):
     decision = router.route(payload.query, history)
 
     # PLAN
-    plan = planner.plan(decision)
+    plan = planner.plan(decision, payload.query)
 
     # EXECUTE
-    result = await executor.execute(plan, payload.query, history)
+    trace = []
+    final_answer = ""
+    async for event in executor.execute(plan, payload.query, history):
+        trace.append(event)
+        if event["type"] == "final":
+            final_answer = event["content"]
+
+    result = {
+        "final_answer": final_answer,
+        "trace": trace
+    }
 
     total_duration = time.time() - total_start_time
     result["total_duration_seconds"] = round(total_duration, 4)
